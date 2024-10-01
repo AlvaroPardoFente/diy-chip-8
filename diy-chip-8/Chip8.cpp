@@ -99,5 +99,14 @@ bool Chip8::emulateCycle()
 	// Execute opcode
 
 	// Update timers
+	if (delay_timer > 0)
+		--delay_timer;
+	if (sound_timer > 0)
+	{
+		if (!(--sound_timer))
+			// TODO Insert actual sound
+			std::cout << "BEEP!\n";
+	}
+
 	return false;
 }
