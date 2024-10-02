@@ -37,6 +37,8 @@ private:
 	std::array<uint8_t, 16> chip8_fontset;
 
 public:
+	const std::bitset<64 * 32>& getGfx();
+
 	bool drawFlag{};
 
 	int init();

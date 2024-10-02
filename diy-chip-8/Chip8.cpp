@@ -76,6 +76,11 @@ int Chip8::init()
 	return 0;
 }
 
+const std::bitset<64 * 32>& Chip8::getGfx()
+{
+	return gfx;
+}
+
 bool Chip8::emulateCycle()
 {
 	// Fetch opcode

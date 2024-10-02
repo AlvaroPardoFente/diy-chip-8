@@ -5,8 +5,30 @@
 const int defaultWindowWidth = 1080;
 const int defaultWindowHeight = 720;
 
-const int logicalWidth = 1080;
-const int logicalHeight = 720;
+const int logicalWidth = 64;
+const int logicalHeight = 32;
+
+int updateScreen(SDL_Renderer* renderer, const std::bitset<64 * 32>& gfx)
+{
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+	SDL_RenderClear(renderer);
+
+	SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+	for (int i = 0; i < 32; i++)
+	{
+		for (int j = 0; j < 64; j++)
+		{
+			if (gfx.test(i * 64 + j))
+			{
+				SDL_RenderDrawPoint(renderer, j, i);
+			}
+		}
+	}
+
+	SDL_RenderPresent(renderer);
+
+	return 0;
+}
 
 int main(int argc, char** argv)
 {
@@ -26,9 +48,9 @@ int main(int argc, char** argv)
 		renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 		if (renderer)
 		{
-			SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+			SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 			SDL_RenderSetLogicalSize(renderer, logicalWidth, logicalHeight);
-			std::cout << "Renderer created!" << std::endl;
+			std::cout << "Renderer created!\n";
 		}
 	}
 
@@ -47,10 +69,23 @@ int main(int argc, char** argv)
 		// If the draw flag is set, update the screen
 		if (chip8.drawFlag)
 		{
+			updateScreen(renderer, chip8.getGfx());
 		}
 
 		// Store key press state
 	}
+
+	// Test screen
+	std::bitset<64 * 32> btest{};
+	btest.set(2);
+	btest.set(30);
+	btest.set(31);
+	btest.set(70);
+	btest.set(100);
+	btest.set(64 * 10);
+
+	updateScreen(renderer, btest);
+	std::cin.get();
 
 	return 0;
 }
