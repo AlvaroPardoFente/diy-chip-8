@@ -24,8 +24,10 @@ const std::array<uint8_t, 80> chip8_fontset =
 
 int Chip8::init()
 {
+	initJumpTables();
+
 	PC = 0x200;
-	current_opcode = 0;
+	opcode = 0;
 	I = 0;
 	stack_pointer = 0;
 
@@ -84,22 +86,31 @@ const std::bitset<64 * 32>& Chip8::getGfx()
 bool Chip8::emulateCycle()
 {
 	// Fetch opcode
-	current_opcode = static_cast<uint16_t>(memory.at(PC)) << 8 | memory.at(PC + 1);
+	try
+	{
+		opcode = static_cast<uint16_t>(memory.at(PC)) << 8 | memory.at(PC + 1);
+	}
+	catch (const std::out_of_range&)
+	{
+		std::cerr << "ERROR: PC is out of memory bounds\n";
+		exit(EXIT_FAILURE);
+	}
 	std::cout << "PC: 0x" << std::hex << static_cast<int>(memory.at(PC)) << "\n";
 	std::cout << "PC + 1: 0x" << std::hex << static_cast<int>(memory.at(PC + 1)) << "\n";
-	std::cout << "Opcode: 0x" << std::hex << current_opcode << "\n";
+	std::cout << "Opcode: 0x" << std::hex << opcode << "\n";
 
 	// Decode opcode
-	switch (current_opcode & 0xF000)
+	/*switch (opcode & 0xF000)
 	{
 	case 0xA000:
-		I = current_opcode & 0x0FFF;
+		I = opcode & 0x0FFF;
 		PC += 2;
 		break;
 	default:
-		std::cout << "Instruction not implemented: 0x" << std::hex << current_opcode << "\n";
+		std::cout << "Instruction not implemented: 0x" << std::hex << opcode << "\n";
 		return false;
-	}
+	}*/
+	firstWordInstructions[(opcode & 0xF000) >> 12]();
 
 	// Execute opcode
 
@@ -113,5 +124,30 @@ bool Chip8::emulateCycle()
 			std::cout << "BEEP!\n";
 	}
 
-	return false;
+	return true;
+}
+
+//
+//
+// ********************************** INSTRUCTION EXECUTIONS **********************************
+//
+//
+
+void Chip8::initJumpTables()
+{
+	firstWordInstructions.fill(std::bind(&Chip8::cpuNULL, this));
+	firstWordInstructions[0xA] = std::bind(&Chip8::cpuNULL, this);
+}
+
+// Default
+void Chip8::cpuNULL()
+{
+	std::cout << "Instruction not implemented: 0x" << std::hex << opcode << "\n";
+	PC += 2;
+}
+
+void Chip8::handle0xA000()
+{
+	I = opcode & 0x0FFF;
+	PC += 2;
 }

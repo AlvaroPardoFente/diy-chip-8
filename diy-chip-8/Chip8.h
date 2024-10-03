@@ -1,11 +1,12 @@
 #pragma once
 #include <array>
 #include <bitset>
+#include <functional>
 class Chip8
 {
 private:
 	// Currently running opcode
-	uint16_t current_opcode;
+	uint16_t opcode;
 
 	// Chip-8 RAM
 	std::array<uint8_t, 4096> memory;
@@ -36,7 +37,13 @@ private:
 
 	std::array<uint8_t, 16> chip8_fontset;
 
+	// Define the type for the opcode handler functions
+	using OpcodeHandler = std::function<void()>;
+
 public:
+
+	std::array<bool, 16> keyState;
+
 	const std::bitset<64 * 32>& getGfx();
 
 	bool drawFlag{};
@@ -44,4 +51,15 @@ public:
 	int init();
 
 	bool emulateCycle();
+
+	// Instruction implementation
+private:
+	// Init all jump tables with function pointers
+	void initJumpTables();
+
+	// Array to store opcode handlers
+	std::array<OpcodeHandler, 16> firstWordInstructions{}; // 16-bit opcodes
+
+	void cpuNULL();
+	void handle0xA000();
 };

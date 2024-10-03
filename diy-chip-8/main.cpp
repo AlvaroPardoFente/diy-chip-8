@@ -205,7 +205,7 @@ int main(int argc, char** argv)
 		handleEvents(chip8, event);
 
 		// Emulate one cycle
-		//running = chip8.emulateCycle();
+		running = chip8.emulateCycle();
 
 		// If the draw flag is set, update the screen
 		if (chip8.drawFlag)
