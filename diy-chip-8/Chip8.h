@@ -60,6 +60,34 @@ private:
 	// Array to store opcode handlers
 	std::array<OpcodeHandler, 16> firstWordInstructions{}; // 16-bit opcodes
 
+	// Default
 	void cpuNULL();
-	void handle0xA000();
+
+	// First level instructions
+	void i0x0();
+	void i0x1NNN();
+	void i0x2NNN();
+	void i0x3XKK();
+	void i0x4XKK();
+	void i0x5XY0();
+	void i0x6XKK();
+	void i0x7XKK();
+	void i0x8();
+	void i0xANNN();
+
+	// 0x0 instructions
+	void i0x0NNN();
+	void i0x00E0();
+	void i0x00EE();
+
+	// 0x8 instructions
+	void i0x8XY0();
+	void i0x8XY1();
+	void i0x8XY2();
+	void i0x8XY3();
+	void i0x8XY4();
+	void i0x8XY5();
+	void i0x8XY6();
+	void i0x8XY7();
+	void i0x8XYE();
 };
