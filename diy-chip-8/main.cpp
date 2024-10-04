@@ -211,6 +211,7 @@ int main(int argc, char** argv)
 		if (chip8.drawFlag)
 		{
 			updateScreen(renderer, chip8.getGfx());
+			chip8.drawFlag = false;
 		}
 
 		//std::copy(chip8.keyState.begin(), chip8.keyState.end(), std::ostream_iterator<int>(std::cout, " "));

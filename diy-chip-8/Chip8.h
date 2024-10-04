@@ -2,6 +2,7 @@
 #include <array>
 #include <bitset>
 #include <functional>
+#include <random>
 class Chip8
 {
 private:
@@ -35,11 +36,16 @@ private:
 	// Points to the current stack index
 	uint16_t stack_pointer;
 
+	// Fontset
 	std::array<uint8_t, 16> chip8_fontset;
 
 	// Define the type for the opcode handler functions
 	using OpcodeHandler = std::function<void()>;
 
+	// Random number generation
+	std::mt19937 gen{ std::random_device{}() };
+	std::uniform_int_distribution<unsigned short> dist{ 0, 255 };
+	uint8_t random();
 public:
 
 	std::array<bool, 16> keyState;
@@ -73,7 +79,11 @@ private:
 	void i0x6XKK();
 	void i0x7XKK();
 	void i0x8();
+	void i0x9XY0();
 	void i0xANNN();
+	void i0xBNNN();
+	void i0xCXKK();
+	void i0xDXYN();
 
 	// 0x0 instructions
 	void i0x0NNN();

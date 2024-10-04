@@ -127,6 +127,11 @@ bool Chip8::emulateCycle()
 	return true;
 }
 
+uint8_t Chip8::random()
+{
+	return static_cast<uint8_t>(dist(gen));
+}
+
 //
 //
 // ********************************** INSTRUCTION EXECUTIONS **********************************
@@ -143,9 +148,13 @@ void Chip8::initJumpTables()
 	firstWordInstructions[0x4] = std::bind(&Chip8::i0x4XKK, this);
 	firstWordInstructions[0x5] = std::bind(&Chip8::i0x5XY0, this);
 	firstWordInstructions[0x6] = std::bind(&Chip8::i0x6XKK, this);
-	firstWordInstructions[0x7] = std::bind(&Chip8::i0xANNN, this);
-	firstWordInstructions[0x8] = std::bind(&Chip8::i0xANNN, this);
+	firstWordInstructions[0x7] = std::bind(&Chip8::i0x7XKK, this);
+	firstWordInstructions[0x8] = std::bind(&Chip8::i0x8, this);
+	firstWordInstructions[0x7] = std::bind(&Chip8::i0x9XY0, this);
 	firstWordInstructions[0xA] = std::bind(&Chip8::i0xANNN, this);
+	firstWordInstructions[0xB] = std::bind(&Chip8::i0xBNNN, this);
+	firstWordInstructions[0xC] = std::bind(&Chip8::i0xCXKK, this);
+	firstWordInstructions[0xD] = std::bind(&Chip8::i0xDXYN, this);
 }
 
 // Default
@@ -206,9 +215,14 @@ void Chip8::i0x4XKK()
 // Skip next instruction if Vx = Vy
 void Chip8::i0x5XY0()
 {
-	if (V[(opcode & 0x0F00) >> 8] == V[(opcode & 0x00F0) >> 4])
+	if ((opcode & 0x000F) != 0x0)
+		cpuNULL();
+	else
+	{
+		if (V[(opcode & 0x0F00) >> 8] == V[(opcode & 0x00F0) >> 4])
+			PC += 2;
 		PC += 2;
-	PC += 2;
+	}
 }
 
 // Set Vx = kk
@@ -231,19 +245,48 @@ void Chip8::i0x8()
 	switch (opcode & 0x000F)
 	{
 	case 0x0:
+		i0x8XY0();
+		break;
 	case 0x1:
+		i0x8XY1();
+		break;
 	case 0x2:
+		i0x8XY2();
+		break;
 	case 0x3:
+		i0x8XY3();
+		break;
 	case 0x4:
 		i0x8XY4();
 		break;
 	case 0x5:
+		i0x8XY5();
+		break;
 	case 0x6:
+		i0x8XY6();
+		break;
 	case 0x7:
+		i0x8XY7();
+		break;
 	case 0xE:
+		i0x8XYE();
+		break;
 	default:
 		cpuNULL();
 		break;
+	}
+}
+
+// Skip next instruction if Vx != Vy
+void Chip8::i0x9XY0()
+{
+	if ((opcode & 0x000F) != 0x0)
+		cpuNULL();
+	else
+	{
+		if (V[(opcode & 0x0F00) >> 8] != V[(opcode & 0x00F0) >> 4])
+			PC += 2;
+		PC += 2;
 	}
 }
 
@@ -251,6 +294,48 @@ void Chip8::i0x8()
 void Chip8::i0xANNN()
 {
 	I = opcode & 0x0FFF;
+	PC += 2;
+}
+
+// Jump to location nnn + V0
+void Chip8::i0xBNNN()
+{
+	PC = V[0x0] + (opcode & 0x0FFF);
+}
+
+// Set Vx = random byte AND kk
+void Chip8::i0xCXKK()
+{
+	V[(opcode & 0x0F00) >> 8] = random() & static_cast<uint8_t>(opcode & 0x00FF);
+}
+
+// Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision
+void Chip8::i0xDXYN()
+{
+	// From I to I + N, draw each 8 bits on top of the last ones
+	uint8_t height = opcode & 0x000F;
+	uint16_t x = V[(opcode & 0x0F00) >> 8];
+	uint16_t y = V[(opcode & 0x00F0) >> 4];
+
+	V[0xF] = 0x0;
+
+	for (uint8_t i = 0; i < height; i++)
+	{
+		uint8_t byte = memory[I + i];
+		for (uint8_t j = 0; j < 8; j++)
+		{
+			// Shift left to look for each bit individually, display only if bit is set
+			if ((byte & 0b10000000) >> j)
+			{
+				uint16_t coord = ((y + i) * 64) + (x + j);
+				gfx.flip(coord);
+				if (gfx.test(coord))
+					V[0xF] = 0x1;
+			}
+		}
+	}
+
+	drawFlag = true;
 	PC += 2;
 }
 
@@ -278,7 +363,7 @@ void Chip8::i0x00EE()
 	PC += 2;
 }
 
-// 0x8 instructions
+// ************************** 0x8 instructions **************************
 
 // Set Vx = Vy
 void Chip8::i0x8XY0()
@@ -327,5 +412,33 @@ void Chip8::i0x8XY5()
 	else
 		V[0xF] = 0;
 	V[(opcode & 0x0F00) >> 8] -= V[(opcode & 0x00F0) >> 4];
+	PC += 2;
+}
+
+// Set Vx = Vx SHR 1
+void Chip8::i0x8XY6()
+{
+	V[0xF] = V[(opcode & 0x0F00) >> 8] & 0x1;
+	V[(opcode & 0x0F00) >> 8] >>= 0x1;
+	PC += 2;
+}
+
+// Set Vx = Vy - Vx, set VF = NOT borrow
+void Chip8::i0x8XY7()
+{
+	if (V[(opcode & 0x00F0) >> 4] > V[(opcode & 0x0F00) >> 8])
+		V[0xF] = 1;
+	else
+		V[0xF] = 0;
+	V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8];
+	PC += 2;
+}
+
+// Set Vx = Vx SHL 1
+void Chip8::i0x8XYE()
+{
+	// Shift Vx to the right 7 bits so most-significant bit is the only one remaining
+	V[0xF] = V[(opcode & 0x0F00) >> 8] >> 7;
+	V[(opcode & 0x0F00) >> 8] <<= 1;
 	PC += 2;
 }
