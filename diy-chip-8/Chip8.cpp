@@ -48,7 +48,7 @@ int Chip8::init()
 	delay_timer = 0;
 	sound_timer = 0;
 
-	std::ifstream file{ "resources/games/pong2.c8", std::ios::binary };
+	std::ifstream file{ "resources/games/invaders.c8", std::ios::binary };
 	if (!file)
 	{
 		// File opening error
@@ -95,34 +95,10 @@ bool Chip8::emulateCycle()
 		std::cerr << "ERROR: PC is out of memory bounds\n";
 		exit(EXIT_FAILURE);
 	}
-	std::cout << "PC: 0x" << std::hex << static_cast<int>(memory.at(PC)) << "\n";
-	std::cout << "PC + 1: 0x" << std::hex << static_cast<int>(memory.at(PC + 1)) << "\n";
-	std::cout << "Opcode: 0x" << std::hex << opcode << "\n";
+	std::cout << "\n[0x" << std::hex << opcode << "]\n";
 
-	// Decode opcode
-	/*switch (opcode & 0xF000)
-	{
-	case 0xA000:
-		I = opcode & 0x0FFF;
-		PC += 2;
-		break;
-	default:
-		std::cout << "Instruction not implemented: 0x" << std::hex << opcode << "\n";
-		return false;
-	}*/
+	// Decode and execute opcode
 	firstWordInstructions[(opcode & 0xF000) >> 12]();
-
-	// Execute opcode
-
-	// Update timers
-	if (delay_timer > 0)
-		--delay_timer;
-	if (sound_timer > 0)
-	{
-		if (!(--sound_timer))
-			// TODO Insert actual sound
-			std::cout << "BEEP!\n";
-	}
 
 	return true;
 }
@@ -150,11 +126,13 @@ void Chip8::initJumpTables()
 	firstWordInstructions[0x6] = std::bind(&Chip8::i0x6XKK, this);
 	firstWordInstructions[0x7] = std::bind(&Chip8::i0x7XKK, this);
 	firstWordInstructions[0x8] = std::bind(&Chip8::i0x8, this);
-	firstWordInstructions[0x7] = std::bind(&Chip8::i0x9XY0, this);
+	firstWordInstructions[0x9] = std::bind(&Chip8::i0x9XY0, this);
 	firstWordInstructions[0xA] = std::bind(&Chip8::i0xANNN, this);
 	firstWordInstructions[0xB] = std::bind(&Chip8::i0xBNNN, this);
 	firstWordInstructions[0xC] = std::bind(&Chip8::i0xCXKK, this);
 	firstWordInstructions[0xD] = std::bind(&Chip8::i0xDXYN, this);
+	firstWordInstructions[0xE] = std::bind(&Chip8::i0xE, this);
+	firstWordInstructions[0xF] = std::bind(&Chip8::i0xF, this);
 }
 
 // Default
@@ -176,6 +154,7 @@ void Chip8::i0x0()
 		break;
 	case 0x00EE:
 		i0x00EE();
+		break;
 	default:
 		i0x0NNN();
 		break;
@@ -307,6 +286,7 @@ void Chip8::i0xBNNN()
 void Chip8::i0xCXKK()
 {
 	V[(opcode & 0x0F00) >> 8] = random() & static_cast<uint8_t>(opcode & 0x00FF);
+	PC += 2;
 }
 
 // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision
@@ -325,11 +305,11 @@ void Chip8::i0xDXYN()
 		for (uint8_t j = 0; j < 8; j++)
 		{
 			// Shift left to look for each bit individually, display only if bit is set
-			if ((byte & 0b10000000) >> j)
+			if (byte & (0b10000000 >> j))
 			{
-				uint16_t coord = ((y + i) * 64) + (x + j);
+				uint16_t coord = (((y + i) % 32) * 64) + ((x + j) % 64);
 				gfx.flip(coord);
-				if (gfx.test(coord))
+				if (!gfx.test(coord))
 					V[0xF] = 0x1;
 			}
 		}
@@ -337,6 +317,61 @@ void Chip8::i0xDXYN()
 
 	drawFlag = true;
 	PC += 2;
+}
+
+// 0xE handler
+void Chip8::i0xE()
+{
+	switch (opcode & 0x00FF)
+	{
+	case 0x9E:
+		i0xEX9E();
+		break;
+	case 0xA1:
+		i0xEXA1();
+		break;
+	default:
+		cpuNULL();
+		break;
+	}
+}
+
+// 0xF handler
+void Chip8::i0xF()
+{
+	switch (opcode & 0x00FF)
+	{
+	case 0x07:
+		i0xFX07();
+		break;
+	case 0x0A:
+		i0xFX0A();
+		break;
+	case 0x15:
+		i0xFX15();
+		break;
+	case 0x18:
+		i0xFX18();
+		break;
+	case 0x1E:
+		i0xFX1E();
+		break;
+	case 0x29:
+		i0xFX29();
+		break;
+	case 0x33:
+		i0xFX33();
+		break;
+	case 0x55:
+		i0xFX55();
+		break;
+	case 0x65:
+		i0xFX65();
+		break;
+	default:
+		cpuNULL();
+		break;
+	}
 }
 
 // ************************** 0x0 instructions **************************
@@ -440,5 +475,106 @@ void Chip8::i0x8XYE()
 	// Shift Vx to the right 7 bits so most-significant bit is the only one remaining
 	V[0xF] = V[(opcode & 0x0F00) >> 8] >> 7;
 	V[(opcode & 0x0F00) >> 8] <<= 1;
+	PC += 2;
+}
+
+// ************************** 0xE instructions **************************
+
+// Skip next instruction if key with the value of Vx is pressed
+void Chip8::i0xEX9E()
+{
+	if (keyState[V[(opcode & 0x0F00) >> 8]])
+		PC += 2;
+	PC += 2;
+}
+
+// Skip next instruction if key with the value of Vx is not pressed
+void Chip8::i0xEXA1()
+{
+	if (!keyState[V[(opcode & 0x0F00) >> 8]])
+		PC += 2;
+	PC += 2;
+}
+
+// ************************** 0xF instructions **************************
+
+// Set Vx = delay timer value
+void Chip8::i0xFX07()
+{
+	V[(opcode & 0x0F00) >> 8] = delay_timer;
+	PC += 2;
+}
+
+// Wait for a key press, store the value of the key in Vx
+void Chip8::i0xFX0A()
+{
+	// Returns the first key pressed (problem?)
+	auto it = std::find(keyState.begin(), keyState.end(), true);
+	// Repeat instruction if no keys are pressed
+	if (it == keyState.end())
+		return;
+	V[(opcode & 0x0F00) >> 8] = *it;
+	PC += 2;
+}
+
+// Set delay timer = Vx
+void Chip8::i0xFX15()
+{
+	delay_timer = V[(opcode & 0x0F00) >> 8];
+	PC += 2;
+}
+
+// Set sound timer = Vx
+void Chip8::i0xFX18()
+{
+	sound_timer = V[(opcode & 0x0F00) >> 8];
+	PC += 2;
+}
+
+// Set I = I + Vx
+void Chip8::i0xFX1E()
+{
+	I += V[(opcode & 0x0F00) >> 8];
+	PC += 2;
+}
+
+// Set I = location of sprite for digit Vx
+void Chip8::i0xFX29()
+{
+	uint8_t digit = V[(opcode & 0x0F00) >> 8];
+	// 5 is the digit size in bytes. Fontset starts at memory 0x000
+	I = digit * 0x5;
+	PC += 2;
+}
+
+// Store BCD representation of Vx in memory locations I, I+1, and I+2
+void Chip8::i0xFX33()
+{
+	uint8_t num = V[(opcode & 0x0F00) >> 8];
+	memory[I] = num / 100;
+	memory[I + 1] = (num % 100) / 10;
+	memory[I + 2] = (num % 100) % 10;
+	PC += 2;
+}
+
+// Store registers V0 through Vx in memory starting at location I
+void Chip8::i0xFX55()
+{
+	auto last_reg = (opcode & 0x0F00) >> 8;
+	for (int i = 0; i <= last_reg; i++)
+	{
+		memory[I + i] = V[i];
+	}
+	PC += 2;
+}
+
+// Read registers V0 through Vx from memory starting at location I
+void Chip8::i0xFX65()
+{
+	auto last_reg = (opcode & 0x0F00) >> 8;
+	for (int i = 0; i <= last_reg; i++)
+	{
+		V[i] = memory[I + i];
+	}
 	PC += 2;
 }

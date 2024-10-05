@@ -2,18 +2,24 @@
 #include <iostream>
 #include "Chip8.h"
 
-const int defaultWindowWidth = 1080;
-const int defaultWindowHeight = 720;
+const int clock_speed = 500; // Hz
+const int update_interval = 1000 / clock_speed; // Period
+
+const int timer_speed = 60; // Hz - Timer frequency
+const int update_timer_period = 1000 / timer_speed; // Period
+
+const int defaultWindowWidth = 64 * 20;
+const int defaultWindowHeight = 32 * 20;
 
 const int logicalWidth = 64;
 const int logicalHeight = 32;
 
 static int updateScreen(SDL_Renderer* renderer, const std::bitset<64 * 32>& gfx)
 {
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+	SDL_SetRenderDrawColor(renderer, 42, 31, 48, SDL_ALPHA_OPAQUE);
 	SDL_RenderClear(renderer);
 
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+	SDL_SetRenderDrawColor(renderer, 230, 176, 101, SDL_ALPHA_OPAQUE);
 	for (int i = 0; i < 32; i++)
 	{
 		for (int j = 0; j < 64; j++)
@@ -183,7 +189,7 @@ int main(int argc, char** argv)
 			std::cout << "Window created!" << std::endl;
 		}
 
-		renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+		renderer = SDL_CreateRenderer(window, -1, 0);
 		if (renderer)
 		{
 			SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
@@ -191,6 +197,13 @@ int main(int argc, char** argv)
 			std::cout << "Renderer created!\n";
 		}
 	}
+
+	// Game loop time handling
+	uint32_t last_update_time = 0;
+	int32_t delta_time = 0;
+
+	// Timer handling
+	uint32_t last_timer_update = 0;
 
 	// Emulator init
 	Chip8 chip8{};
@@ -201,6 +214,17 @@ int main(int argc, char** argv)
 	bool running = true;
 	while (running)
 	{
+		// Update game loop time
+		uint32_t current_time = SDL_GetTicks();
+		delta_time = current_time - last_update_time;
+
+		// Sleep if needed to keep time per frame
+		int32_t time_to_sleep = update_interval - delta_time;
+		if (time_to_sleep > 0)
+		{
+			SDL_Delay(time_to_sleep);
+		}
+
 		// Store key press state
 		handleEvents(chip8, event);
 
@@ -214,21 +238,23 @@ int main(int argc, char** argv)
 			chip8.drawFlag = false;
 		}
 
-		//std::copy(chip8.keyState.begin(), chip8.keyState.end(), std::ostream_iterator<int>(std::cout, " "));
-		//std::cout << std::endl;
+		// Update timers
+		if (current_time - last_timer_update >= update_timer_period)
+		{
+			if (chip8.delay_timer > 0)
+				--chip8.delay_timer;
+			if (chip8.sound_timer > 0)
+			{
+				if (!(--chip8.sound_timer))
+					// TODO Insert actual sound
+					std::cout << "BEEP!\n";
+			}
+
+			last_timer_update = current_time;
+		}
+
+		last_update_time = current_time;
 	}
-
-	// Test screen
-	std::bitset<64 * 32> btest{};
-	btest.set(2);
-	btest.set(30);
-	btest.set(31);
-	btest.set(70);
-	btest.set(100);
-	btest.set(64 * 10);
-
-	updateScreen(renderer, btest);
-	std::cin.get();
 
 	return 0;
 }
