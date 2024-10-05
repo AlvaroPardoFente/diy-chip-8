@@ -1,4 +1,5 @@
 #include <SDL.h>
+#include <SDL_mixer.h>
 #include <iostream>
 #include "Chip8.h"
 
@@ -150,18 +151,17 @@ static void handleKeyRelease(Chip8& chip8, SDL_Event& event)
 	}
 }
 
-static void handleEvents(Chip8& chip8, SDL_Event& event)
+static bool handleEvents(Chip8& chip8, SDL_Event& event)
 {
 	while (SDL_PollEvent(&event))
 	{
 		switch (event.type)
 		{
 		case SDL_QUIT:
-			exit(0);
-			break;
+			return false;
 		case SDL_KEYDOWN:
 			if (event.key.keysym.sym == SDLK_ESCAPE)
-				exit(0);
+				return false;
 			else
 				handleKeyPress(chip8, event);
 			break;
@@ -171,6 +171,8 @@ static void handleEvents(Chip8& chip8, SDL_Event& event)
 			break;
 		}
 	}
+
+	return true;
 }
 
 int main(int argc, char** argv)
@@ -179,23 +181,32 @@ int main(int argc, char** argv)
 	SDL_Renderer* renderer{};
 	SDL_Event event{};
 
-	if (SDL_Init(SDL_INIT_EVERYTHING) == 0)
+	Mix_Chunk* beep = nullptr;
+
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) == 0)
 	{
+		if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+		{
+			printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError());
+		}
 		std::cout << "Subsystems Initialised..." << std::endl;
 
 		window = SDL_CreateWindow("Chip-8", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, defaultWindowWidth, defaultWindowHeight, 0);
-		if (window)
-		{
-			std::cout << "Window created!" << std::endl;
-		}
+		if (!window)
+			throw std::runtime_error("Window could not be created");
 
 		renderer = SDL_CreateRenderer(window, -1, 0);
 		if (renderer)
 		{
 			SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 			SDL_RenderSetLogicalSize(renderer, logicalWidth, logicalHeight);
-			std::cout << "Renderer created!\n";
 		}
+		else
+			throw std::runtime_error("Renderer could not be created");
+
+		beep = Mix_LoadWAV("resources/audio/beep.wav");
+		if (!beep)
+			throw std::runtime_error("Beep file cound not be opened");
 	}
 
 	// Game loop time handling
@@ -226,10 +237,10 @@ int main(int argc, char** argv)
 		}
 
 		// Store key press state
-		handleEvents(chip8, event);
+		running = handleEvents(chip8, event);
 
 		// Emulate one cycle
-		running = chip8.emulateCycle();
+		chip8.emulateCycle();
 
 		// If the draw flag is set, update the screen
 		if (chip8.drawFlag)
@@ -246,8 +257,7 @@ int main(int argc, char** argv)
 			if (chip8.sound_timer > 0)
 			{
 				if (!(--chip8.sound_timer))
-					// TODO Insert actual sound
-					std::cout << "BEEP!\n";
+					Mix_PlayChannel(-1, beep, 0);
 			}
 
 			last_timer_update = current_time;
@@ -255,6 +265,12 @@ int main(int argc, char** argv)
 
 		last_update_time = current_time;
 	}
+
+	SDL_DestroyWindow(window);
+	SDL_DestroyRenderer(renderer);
+	Mix_FreeChunk(beep);
+	Mix_Quit();
+	SDL_Quit();
 
 	return 0;
 }

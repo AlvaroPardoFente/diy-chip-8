@@ -69,11 +69,8 @@ int Chip8::init()
 	else
 	{
 		// File size error
+		throw std::length_error("File size can't fit in emulated memory");
 	}
-
-	std::cout << "Array section: ";
-	std::copy(memory.begin() + 512, memory.begin() + 600 + 1, std::ostream_iterator<int>(std::cout, " "));
-	std::cout << std::endl;
 
 	return 0;
 }
@@ -83,24 +80,17 @@ const std::bitset<64 * 32>& Chip8::getGfx()
 	return gfx;
 }
 
-bool Chip8::emulateCycle()
+void Chip8::emulateCycle()
 {
 	// Fetch opcode
-	try
-	{
-		opcode = static_cast<uint16_t>(memory.at(PC)) << 8 | memory.at(PC + 1);
-	}
-	catch (const std::out_of_range&)
-	{
-		std::cerr << "ERROR: PC is out of memory bounds\n";
-		exit(EXIT_FAILURE);
-	}
-	std::cout << "\n[0x" << std::hex << opcode << "]\n";
+	opcode = static_cast<uint16_t>(memory.at(PC)) << 8 | memory.at(PC + 1);
+
+	//std::cout << "\n[0x" << std::hex << opcode << "]\n";
 
 	// Decode and execute opcode
 	firstWordInstructions[(opcode & 0xF000) >> 12]();
 
-	return true;
+	return;
 }
 
 uint8_t Chip8::random()

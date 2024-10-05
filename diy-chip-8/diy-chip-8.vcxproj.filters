@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Resource Files\games">
+      <UniqueIdentifier>{6433496b-a4a4-4583-bf01-cbbfdfe1cbdb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\audio">
+      <UniqueIdentifier>{b942f775-47b8-4d68-9789-6b3d03b5615e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -29,13 +35,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\games\invaders.c8">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\games</Filter>
     </None>
     <None Include="resources\games\pong2.c8">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\games</Filter>
     </None>
     <None Include="resources\games\tetris.c8">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\games</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Media Include="resources\audio\beep.wav">
+      <Filter>Resource Files\audio</Filter>
+    </Media>
   </ItemGroup>
 </Project>
